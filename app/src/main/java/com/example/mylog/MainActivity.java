@@ -4,6 +4,7 @@ import android.content.Context;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.storage.StorageManager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.view.ContextThemeWrapper;
 import android.util.Log;
@@ -26,6 +27,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.lang.reflect.Array;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -55,6 +59,38 @@ public class MainActivity extends AppCompatActivity {
         extpath = getExtSDpath();//外置SD的路径
         Log.e("", "1.外置SD卡的路径为extpath=" + extpath);
         Log.e("", "sd=====================" + sd.getExtSDCardPaths());
+    }
+
+    //外部存储设备的路径,get this method
+    private String getStoragePath(Context mContext, boolean is_removale) {//外部存储设备的路径
+
+        StorageManager mStorageManager = (StorageManager) mContext.getSystemService(Context.STORAGE_SERVICE);
+        Class<?> storageVolumeClazz = null;
+        try {
+            storageVolumeClazz = Class.forName("android.os.storage.StorageVolume");
+            Method getVolumeList = mStorageManager.getClass().getMethod("getVolumeList");
+            Method getPath = storageVolumeClazz.getMethod("getPath");
+            Method isRemovable = storageVolumeClazz.getMethod("isRemovable");
+            Object result = getVolumeList.invoke(mStorageManager);
+            final int length = Array.getLength(result);
+            for (int i = 0; i < length; i++) {
+                Object storageVolumeElement = Array.get(result, i);
+                String path = (String) getPath.invoke(storageVolumeElement);
+                boolean removable = (Boolean) isRemovable.invoke(storageVolumeElement);
+                if (is_removale == removable) {
+                    return path;
+                }
+            }
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     //获取外置SD卡路径
@@ -171,8 +207,7 @@ public class MainActivity extends AppCompatActivity {
      * @param newName 外部存储的文件
      */
     public void inTooutContent(String oldName, String newName) {
-
-        File file = new File("/storage/sdcard1", newName);//TF卡路径
+        File file = new File(getStoragePath(getApplicationContext(), true), newName);//TF卡路径
         Log.e("", "Environment.getExternalStorageDirectory()==" + Environment.getExternalStorageDirectory());
         BufferedReader br = null;
         FileInputStream fis = null;
